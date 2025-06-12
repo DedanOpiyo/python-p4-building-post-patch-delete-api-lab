@@ -23,12 +23,27 @@ def bakeries():
     bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
     return make_response(  bakeries,   200  )
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods=['PATCH'])
 def bakery_by_id(id):
 
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+    # bakery_serialized = bakery.to_dict()
+    # return make_response ( bakery_serialized, 200  )
+
+    if request.method == 'PATCH':
+        for attr in request.form:
+            setattr(bakery, attr, request.form.get(attr))
+
+        db.session.commit()
+
+        bakery_dict = bakery.to_dict()
+
+        response = make_response(
+            bakery_dict,
+            200
+        )
+
+        return response
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
@@ -44,6 +59,65 @@ def most_expensive_baked_good():
     most_expensive = BakedGood.query.order_by(BakedGood.price.desc()).limit(1).first()
     most_expensive_serialized = most_expensive.to_dict()
     return make_response( most_expensive_serialized,   200  )
+
+# Add route to POST backed good.
+@app.route('/baked_goods', methods=['POST'])
+def baked_goods():
+    
+    if request.method == 'POST':
+        new_backed_good = BakedGood(
+            name=request.form.get("name"),
+            price=request.form.get("price"),
+            bakery_id=request.form.get("bakery_id")
+        )
+
+        db.session.add(new_backed_good)
+        db.session.commit()
+
+        backed_good_dict = new_backed_good.to_dict()
+
+        response = make_response(
+            backed_good_dict,
+            201
+        )
+
+        return response
+
+# Add route to PATCH/DELETE backed good
+@app.route('/baked_goods/<int:id>', methods=['PATCH', 'DELETE'])
+def baked_goods_by_id(id):
+    backed_good = BakedGood.query.filter(BakedGood.id == id).first()
+
+    if request.method == 'PATCH':
+        for attr in request.form:
+            setattr(backed_good, attr, request.form.get(attr))
+
+        db.session.commit()
+
+        backed_good_dict = backed_good.to_dict()
+
+        response = make_response(
+            backed_good_dict,
+            200
+        )
+
+        return response
+    
+    elif request.method == 'DELETE':
+        db.session.delete(backed_good)
+        db.session.commit()
+
+        response_body = {
+            "delete_successful": True,
+            "message": "Backed good deleted"
+        }
+
+        response = make_response(
+            response_body,
+            200
+        )
+
+        return response
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
